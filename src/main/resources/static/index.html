@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A7A6C">
+<title>FlowSense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/css/flowsense.css">
+<style>
+  body{padding-bottom:env(safe-area-inset-bottom,0px)}
+  .shell{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  header.topbar{position:sticky;top:0;z-index:5;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+  main{flex:1;padding:18px 16px 32px;display:grid;gap:16px;align-content:start}
+  .title{font-size:1.45rem}
+  .prow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);width:100%;text-align:start;cursor:pointer}
+  .prow:hover{border-color:var(--accent)}
+  .prow .nm{font-weight:600}
+  .best{border:1.5px solid var(--accent);background:var(--accent-soft)}
+  .bigpos{font-family:var(--display);font-size:3.4rem;font-weight:700;line-height:1}
+  .nudge{border:1.5px dashed var(--accent);background:var(--accent-soft);border-radius:14px;padding:14px;display:grid;gap:8px}
+  .called{animation:pulse 1.4s ease-in-out 4}
+  .pass{display:grid;justify-items:center;gap:10px;padding:18px;border-radius:16px;background:#fff;color:#111;border:1px solid var(--line)}
+  .pass .code{font-family:var(--mono);font-weight:600;letter-spacing:.06em}
+  .confirm{display:grid;gap:8px;padding:12px;border:1px solid var(--crit);border-radius:12px}
+  .ticket-line{font-family:var(--mono);font-size:.74rem;color:var(--muted);background:none;border:0;cursor:pointer;padding:0}
+  .stat3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .stat3 div{background:var(--panel2);border-radius:10px;padding:10px}
+  .stat3 b{display:block;font-family:var(--display);font-size:1.15rem}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="stack" style="gap:2px">
+      <div class="brand">Flow<span>Sense</span></div>
+      <button class="ticket-line" id="ticketLine" type="button"></button>
+    </div>
+    <button class="btn sm" id="langBtn" type="button">العربية</button>
+  </header>
+  <main id="app" aria-live="polite"></main>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+(() => {
+  const T = {
+    en: {
+      nearYou: 'Pavilions now', live: 'Live waits · updates every 5 s', shortest: 'Shortest wait right now',
+      holding: 'holding a place', min: 'min', wait: 'wait', people: 'people', back: '← All pavilions',
+      howItWorks: 'Hold your place here and explore. We call you back about 5 minutes before your turn.',
+      hold: 'Hold my place', accessible: 'Accessible lane (called earlier, longer return window)',
+      yourPlace: 'Your place at', readyIn: 'ready in about', heldSince: 'Held since', ticket: 'Ticket',
+      ahead: 'people ahead', virtualPos: 'in virtual queue',
+      whileWait: 'Faster option nearby', switchTxt: (n, w, walk, s) => `${n} has a ${w} min wait, ${walk} min walk. Saves about ${s} min.`,
+      switchBtn: 'Switch to this pavilion', shade: 'Shade and water', shadeTxt: g => `Covered seating near Gate ${g}. Your phone will buzz when it's time.`,
+      leave: 'Leave queue', leaveSure: 'Leave the queue? You will lose your place.', yesLeave: 'Yes, leave', keep: 'Keep my place',
+      yourTurn: "It's your turn", walkTo: g => `Walk to Gate ${g}`, windowLeft: 'Return window', showPass: 'Show this pass at the door',
+      checkedIn: 'Checked in', welcome: n => `Welcome to ${n}`, totalWait: 'Total wait', inLine: 'Standing in line', under5: 'about 5 min',
+      helped: 'Your scan just made the wait estimate more accurate for everyone behind you.', next: 'Plan my next pavilion',
+      expired: 'Your return window passed, so the place was released. You can join again.', joinAgain: 'Join again',
+      changeTicket: 'Expo ticket number', save: 'Save', ticketHint: 'In the real system this comes from your Expo ticket. For the demo any code works.',
+      joined: 'Place held. You are free to explore.', switched: 'Switched. Your new place is held.', left: 'You left the queue.',
+      called: "It's your turn soon!", paused: 'Paused', closed: 'Closed', scanned: 'You scanned the sign at'
+    },
+    ar: {
+      nearYou: 'الأجنحة الآن', live: 'أوقات انتظار مباشرة · تتحدث كل 5 ثوانٍ', shortest: 'أقصر انتظار الآن',
+      holding: 'يحجزون دورهم', min: 'د', wait: 'انتظار', people: 'شخص', back: 'كل الأجنحة →',
+      howItWorks: 'احجز دورك هنا وتجوّل بحرية. سننبهك قبل دورك بحوالي 5 دقائق.',
+      hold: 'احجز دوري', accessible: 'مسار ذوي الإعاقة (تنبيه أبكر ومهلة عودة أطول)',
+      yourPlace: 'دورك في', readyIn: 'جاهز خلال حوالي', heldSince: 'محجوز منذ', ticket: 'التذكرة',
+      ahead: 'شخص قبلك', virtualPos: 'في الطابور الافتراضي',
+      whileWait: 'خيار أسرع قريب منك', switchTxt: (n, w, walk, s) => `${n} انتظاره ${w} د، ومشي ${walk} د. توفّر حوالي ${s} د.`,
+      switchBtn: 'انتقل لهذا الجناح', shade: 'ظل وماء', shadeTxt: g => `جلسات مظللة قرب البوابة ${g}. سيهتز جوالك عند دورك.`,
+      leave: 'مغادرة الطابور', leaveSure: 'مغادرة الطابور؟ ستفقد دورك.', yesLeave: 'نعم، غادر', keep: 'أبقِ دوري',
+      yourTurn: 'حان دورك', walkTo: g => `توجّه إلى البوابة ${g}`, windowLeft: 'مهلة العودة', showPass: 'اعرض هذه البطاقة عند الباب',
+      checkedIn: 'تم الدخول', welcome: n => `أهلاً بك في ${n}`, totalWait: 'إجمالي الانتظار', inLine: 'الوقوف في الطابور', under5: 'حوالي 5 د',
+      helped: 'مسحك جعل تقدير الانتظار أدق لكل من بعدك.', next: 'خطط لجناحك التالي',
+      expired: 'انتهت مهلة العودة وتم تحرير دورك. يمكنك الحجز من جديد.', joinAgain: 'احجز من جديد',
+      changeTicket: 'رقم تذكرة إكسبو', save: 'حفظ', ticketHint: 'في النظام الحقيقي يأتي من تذكرة إكسبو. في العرض يقبل أي رمز.',
+      joined: 'تم حجز دورك. تجوّل بحرية.', switched: 'تم النقل. دورك الجديد محجوز.', left: 'غادرت الطابور.',
+      called: 'دورك قريب!', paused: 'متوقف', closed: 'مغلق', scanned: 'مسحت لوحة'
+    }
+  };
+
+  let lang = FS.store('fs_lang') || 'en';
+  const t = k => T[lang][k];
+  const app = document.getElementById('app');
+  const esc = FS.escapeHtml;
+
+  let ticket = FS.store('fs_ticket');
+  if (!ticket) {
+    ticket = 'EXPO-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.floor(1000 + Math.random() * 9000);
+    FS.store('fs_ticket', ticket);
+  }
+
+  const state = { view: 'browse', pavilions: [], status: null, detailId: null, confirmLeave: false, editTicket: false, fromSign: false, lastStatus: null };
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.getElementById('langBtn').textContent = lang === 'ar' ? 'English' : 'العربية';
+    document.getElementById('ticketLine').textContent = t('ticket') + ' ' + ticket;
+  }
+  document.getElementById('langBtn').onclick = () => { lang = lang === 'ar' ? 'en' : 'ar'; FS.store('fs_lang', lang); applyLang(); render(); };
+  document.getElementById('ticketLine').onclick = () => { state.editTicket = !state.editTicket; render(); };
+
+  // ---------- data ----------
+  async function loadPavilions() {
+    try { state.pavilions = await FS.api('GET', '/pavilion/wait-time/get'); } catch (e) { /* keep last */ }
+  }
+  async function loadStatus() {
+    try { state.status = await FS.api('GET', '/queue-ticket/status/' + encodeURIComponent(ticket)); }
+    catch (e) { state.status = null; }
+  }
+
+  function decideView() {
+    const s = state.status;
+    const prev = state.lastStatus;
+    state.lastStatus = s ? s.status : null;
+    if (s && (s.status === 'WAITING' || s.status === 'CALLED')) {
+      if (s.status === 'CALLED' && prev === 'WAITING') {
+        FS.toast(t('called'));
+        if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 600]);
+      }
+      state.view = s.status === 'CALLED' ? 'called' : 'waiting';
+    } else if (s && s.status === 'ENTERED' && prev && prev !== 'ENTERED') {
+      state.view = 'inside';
+    } else if (s && s.status === 'EXPIRED' && prev === 'CALLED') {
+      state.view = 'expired';
+    } else if (['waiting', 'called'].includes(state.view)) {
+      state.view = 'browse';
+    }
+  }
+
+  // ---------- views ----------
+  function chip(p) {
+    if (p.status === 'PAUSED') return `<span class="chip plain">${t('paused')}</span>`;
+    if (p.status === 'CLOSED') return `<span class="chip plain">${t('closed')}</span>`;
+    return `<span class="chip ${p.level} num">${FS.mins(p.waitMinutes)} ${t('min')}</span>`;
+  }
+
+  function viewBrowse() {
+    const list = [...state.pavilions].sort((a, b) => (a.status !== 'OPEN') - (b.status !== 'OPEN') || a.waitMinutes - b.waitMinutes);
+    const best = list.find(p => p.status === 'OPEN');
+    return `
+      <div class="stack" style="gap:4px"><h1 class="title">${t('nearYou')}</h1><p class="muted small">${t('live')}</p></div>
+      ${best ? `<div class="stack" style="gap:6px"><div class="eyebrow">${t('shortest')}</div>
+        <button class="prow best" data-open="${best.pavilionId}" type="button"><div><div class="nm">${esc(best.name)}</div>
+        <div class="small muted">Gate ${esc(best.gate)} · ${best.zone}</div></div>${chip(best)}</button></div>` : ''}
+      <div class="stack" style="gap:8px">
+      ${list.filter(p => p !== best).map(p => `<button class="prow" data-open="${p.pavilionId}" type="button">
+        <div><div class="nm">${esc(p.name)}</div><div class="small muted">Gate ${esc(p.gate)} · ${p.appWaiting} ${t('holding')}</div></div>${chip(p)}</button>`).join('')}
+      </div>`;
+  }
+
+  function viewDetail() {
+    const p = state.pavilions.find(x => x.pavilionId === state.detailId);
+    if (!p) return '<p class="muted">…</p>';
+    return `
+      <button class="btn sm" data-act="back" type="button" style="justify-self:start">${t('back')}</button>
+      ${state.fromSign ? `<span class="chip acc" style="justify-self:start">${t('scanned')} ${esc(p.name)}</span>` : ''}
+      <h1 class="title">${esc(p.name)}</h1>
+      <div class="row">${chip(p)}<span class="muted small num">≈ ${Math.round(p.peopleInLine)} ${t('people')}</span></div>
+      <p class="muted">${t('howItWorks')}</p>
+      <button class="btn primary block" data-act="join" type="button" ${p.status !== 'OPEN' ? 'disabled' : ''}>${t('hold')}</button>
+      <label class="row small muted" style="flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="laneAcc" style="margin-top:4px"> <span>${t('accessible')}</span></label>`;
+  }
+
+  function viewWaiting() {
+    const s = state.status;
+    const prog = Math.max(4, Math.min(100, 100 - s.etaMinutes * 2));
+    const n = s.nudge;
+    return `
+      <p class="muted">${t('yourPlace')} <b style="color:var(--ink)">${esc(s.pavilionName)}</b></p>
+      <div class="row" style="align-items:flex-end;gap:14px">
+        <div class="bigpos num">#${s.position}</div>
+        <div class="muted num" style="padding-bottom:8px">${t('virtualPos')}<br>${t('readyIn')} <b style="color:var(--ink)">${Math.max(1, Math.round(s.etaMinutes))} ${t('min')}</b></div>
+      </div>
+      <div class="bar"><i style="width:${prog}%"></i></div>
+      <div class="stat3 num small">
+        <div><b>${s.peopleAhead}</b>${t('ahead')}</div>
+        <div><b>${FS.time(s.joinedAt)}</b>${t('heldSince')}</div>
+        <div><b>${esc(s.gate)}</b>Gate</div>
+      </div>
+      ${n ? `<div class="nudge"><b>${t('whileWait')}</b><span>${esc(t('switchTxt')(n.name, Math.round(n.waitMinutes), n.walkMinutes, n.minutesSaved))}</span>
+        <button class="btn primary sm" data-act="switch" data-id="${n.pavilionId}" type="button" style="justify-self:start">${t('switchBtn')}</button></div>`
+        : `<div class="nudge"><b>${t('shade')}</b><span>${esc(t('shadeTxt')(s.gate))}</span></div>`}
+      ${state.confirmLeave
+        ? `<div class="confirm"><span>${t('leaveSure')}</span><div class="row"><button class="btn danger sm" data-act="leaveYes" type="button">${t('yesLeave')}</button><button class="btn sm" data-act="leaveNo" type="button">${t('keep')}</button></div></div>`
+        : `<button class="btn sm" data-act="leave" type="button" style="justify-self:start">${t('leave')}</button>`}`;
+  }
+
+  function viewCalled() {
+    const s = state.status;
+    const left = Math.max(0, (new Date(s.returnDeadline).getTime() - Date.now()) / 60000);
+    return `
+      <div class="called stack" style="gap:8px"><span class="chip acc" style="justify-self:start">${t('yourTurn')}</span>
+        <h1 class="title">${esc(t('walkTo')(s.gate))}</h1>
+        <p class="muted num">${t('windowLeft')}: <b style="color:var(--ink)">${Math.floor(left)}:${String(Math.floor((left % 1) * 60)).padStart(2, '0')}</b></p></div>
+      <div class="pass"><div id="passQr"></div><div class="code">${esc(ticket)}</div><div class="small" style="color:#555">${t('showPass')}</div></div>
+      <p class="muted small">${esc(s.pavilionName)}</p>`;
+  }
+
+  function viewInside() {
+    const s = state.status;
+    return `
+      <span class="chip good" style="justify-self:start">${t('checkedIn')}</span>
+      <h1 class="title">${esc(t('welcome')(s.pavilionName))}</h1>
+      <div class="stat3 num small" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <div><b>${Math.round(s.waitedMinutes || 0)} ${t('min')}</b>${t('totalWait')}</div>
+        <div><b>${t('under5')}</b>${t('inLine')}</div>
+      </div>
+      <p class="muted">${t('helped')}</p>
+      <button class="btn primary block" data-act="home" type="button">${t('next')}</button>`;
+  }
+
+  function viewExpired() {
+    return `<p>${t('expired')}</p><button class="btn primary block" data-act="home" type="button">${t('joinAgain')}</button>`;
+  }
+
+  function viewTicketEditor() {
+    return `<div class="card stack"><label for="ticketInput" class="small muted">${t('changeTicket')}</label>
+      <div class="row" style="flex-wrap:nowrap"><input type="text" id="ticketInput" value="${esc(ticket)}"><button class="btn sm" data-act="saveTicket" type="button">${t('save')}</button></div>
+      <p class="small muted">${t('ticketHint')}</p></div>`;
+  }
+
+  let lastHtml = '';
+  function render(force) {
+    const views = { browse: viewBrowse, detail: viewDetail, waiting: viewWaiting, called: viewCalled, inside: viewInside, expired: viewExpired };
+    const html = (state.editTicket ? viewTicketEditor() : '') + views[state.view]();
+    if (!force && html === lastHtml) return;
+    // keep the user's checkbox choice and avoid re-rendering under a focused input
+    const acc = document.getElementById('laneAcc');
+    const accChecked = acc && acc.checked;
+    if (document.activeElement && document.activeElement.id === 'ticketInput') return;
+    lastHtml = html;
+    app.innerHTML = html;
+    if (accChecked && document.getElementById('laneAcc')) document.getElementById('laneAcc').checked = true;
+    if (state.view === 'called') FS.qr(document.getElementById('passQr'), ticket, 200);
+  }
+
+  // ---------- actions ----------
+  app.addEventListener('click', async e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.open) { state.detailId = +b.dataset.open; state.fromSign = false; state.view = 'detail'; render(); window.scrollTo(0, 0); return; }
+    const act = b.dataset.act;
+    try {
+      if (act === 'back' || act === 'home') { state.view = 'browse'; state.fromSign = false; history.replaceState(null, '', '/'); }
+      if (act === 'join') {
+        const lane = document.getElementById('laneAcc').checked ? 'ACCESSIBLE' : 'STANDARD';
+        b.disabled = true;
+        await FS.api('POST', `/queue-ticket/join/${state.detailId}/${encodeURIComponent(ticket)}/${lane}`);
+        FS.toast(t('joined'));
+        history.replaceState(null, '', '/');
+        await loadStatus(); state.lastStatus = 'WAITING'; state.view = 'waiting';
+      }
+      if (act === 'switch') {
+        b.disabled = true;
+        await FS.api('PUT', `/queue-ticket/switch/${encodeURIComponent(ticket)}/${b.dataset.id}`);
+        FS.toast(t('switched'));
+        await loadStatus();
+      }
+      if (act === 'leave') state.confirmLeave = true;
+      if (act === 'leaveNo') state.confirmLeave = false;
+      if (act === 'leaveYes') {
+        await FS.api('PUT', `/queue-ticket/leave/${encodeURIComponent(ticket)}`);
+        state.confirmLeave = false; FS.toast(t('left')); await loadStatus(); state.view = 'browse';
+      }
+      if (act === 'saveTicket') {
+        const v = document.getElementById('ticketInput').value.trim().toUpperCase();
+        if (v.length >= 4) { ticket = v; FS.store('fs_ticket', v); }
+        state.editTicket = false; applyLang(); await loadStatus(); state.lastStatus = null; decideView();
+      }
+    } catch (err) {
+      FS.toast(err.message, true);
+      b.disabled = false;
+    }
+    render(true);
+  });
+
+  // ---------- loop ----------
+  async function tick() {
+    await Promise.all([loadPavilions(), loadStatus()]);
+    decideView();
+    render();
+  }
+
+  async function start() {
+    applyLang();
+    app.innerHTML = '<p class="muted">…</p>';
+    await Promise.all([loadPavilions(), loadStatus()]);
+    state.lastStatus = state.status ? state.status.status : null;
+    decideView();
+    // Arrived by scanning a pavilion's QR sign: /?join=3
+    const joinId = new URLSearchParams(location.search).get('join');
+    if (joinId && state.view === 'browse') { state.detailId = +joinId; state.fromSign = true; state.view = 'detail'; }
+    render(true);
+    setInterval(tick, 5000);
+    setInterval(() => { if (state.view === 'called') { const el = document.querySelector('.called p b'); if (el) { const left = Math.max(0, (new Date(state.status.returnDeadline).getTime() - Date.now()) / 60000); el.textContent = Math.floor(left) + ':' + String(Math.floor((left % 1) * 60)).padStart(2, '0'); } } }, 1000);
+  }
+  start();
+})();
+</script>
+</body>
+</html>

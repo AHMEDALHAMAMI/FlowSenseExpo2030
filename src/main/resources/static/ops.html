@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FlowSense Operations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/css/flowsense.css">
+<style>
+  /* Site map: warm desert paving, district tints, and real building materials */
+  :root{
+    --ground:#ECE4D4; --ground-l:#D4C6AB; --ground-r:#C2B292; --paving:#DED3BF;
+    --corridor:#F7F2E8; --corridor-edge:#DCCFB8; --slat:#E2D6C0;
+    --d-tech:#DEE7F1; --d-planet:#DDEBDC; --d-humanity:#F3E5D8; --d-culture:#F0E3CB; --d-collab:#E6E1F0;
+    --di-tech:#3D6FA6; --di-planet:#3E8A55; --di-humanity:#C06A3A; --di-culture:#A67B2C; --di-collab:#6A5AA6;
+    --plate-edge:#CDBFA4; --plate-edge2:#BEAE8E;
+    --sand-t:#EFE4CF; --sand-l:#DCCAA8; --sand-r:#C4AE88;
+    --mud-t:#DDB78C; --mud-l:#C7986A; --mud-r:#AC7C51;
+    --glass-t:#CFE3EA; --glass-l:#97BCCB; --glass-r:#7299AB;
+    --white-t:#FBFBF8; --white-l:#E4E6E2; --white-r:#CDD2CE;
+    --green-t:#9CC48A; --green-l:#7AA86A; --green-r:#5F8C52;
+    --steel-t:#D9DEDF; --steel-l:#B4BDBF; --steel-r:#8E999C;
+    --water-t:#9CCFDD; --water-l:#6FB2C6; --water-r:#4C93A9;
+    --coral-t:#F2B49A; --coral-l:#E08E6E; --coral-r:#C77255;
+    --facet:#FFFFFF80; --opening:#5A3A22; --wood:#6B4529;
+    --frond:#6E9E5E; --trunk:#8A6A45; --shadow:#0000001c; --person:#2F3B37;
+    --label-bg:#FFFFFFF0;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --ground:#1E2725; --ground-l:#151C1A; --ground-r:#101614; --paving:#26302D;
+    --corridor:#2C3633; --corridor-edge:#222B29; --slat:#253030;
+    --d-tech:#1D2A37; --d-planet:#1C3024; --d-humanity:#352820; --d-culture:#342D1E; --d-collab:#282438;
+    --di-tech:#7FA9DA; --di-planet:#74C08B; --di-humanity:#E39A6D; --di-culture:#D6AE5F; --di-collab:#A797DE;
+    --plate-edge:#141B19; --plate-edge2:#0F1513;
+    --sand-t:#8E8270; --sand-l:#6E6455; --sand-r:#575043;
+    --mud-t:#9C7A58; --mud-l:#7E5F42; --mud-r:#664B33;
+    --glass-t:#7FA3B2; --glass-l:#4F7484; --glass-r:#3B5966;
+    --white-t:#C9CCC8; --white-l:#A2A7A3; --white-r:#848A86;
+    --green-t:#5F8F55; --green-l:#4A7442; --green-r:#3A5C34;
+    --steel-t:#8E979A; --steel-l:#6E777A; --steel-r:#555D60;
+    --water-t:#4F95A8; --water-l:#3D7A8C; --water-r:#2E6070;
+    --coral-t:#C98466; --coral-l:#A96A50; --coral-r:#8A553F;
+    --facet:#FFFFFF40; --opening:#1C120A; --wood:#4A3020;
+    --frond:#4E7E48; --trunk:#6A5235; --shadow:#00000055; --person:#D9E2DE;
+    --label-bg:#131D1BF0;
+  }}
+
+  main{max-width:1440px;margin:0 auto;padding:18px 16px 40px;display:grid;gap:16px}
+  .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+  .kpi{display:grid;gap:2px}
+  .kpi .v{font-family:var(--display);font-size:1.5rem;font-weight:700}
+
+  .mode{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;align-items:center}
+  .mode.auto{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;padding:3px;background:var(--panel2)}
+  .seg span{padding:7px 14px;border-radius:9px;font-weight:600;font-size:.9rem;color:var(--muted)}
+  .seg span.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px #0002}
+  .seg span.on.auto{background:var(--accent);color:var(--accent-ink)}
+  .live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-inline-end:6px;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .guard{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:.84rem;color:var(--muted)}
+  .guard li{display:flex;gap:8px;align-items:flex-start}
+  .guard li::before{content:"";flex:none;width:6px;height:6px;margin-top:7px;border-radius:50%;background:var(--accent)}
+
+  .map{padding:14px 14px 10px;gap:8px}
+  .map-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:0 4px}
+  .map svg{display:block;width:100%;height:auto}
+  .demo{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .demo select{width:auto;min-width:180px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:.7rem;color:var(--muted);padding:2px 4px 0}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px;vertical-align:-1px}
+  .legend b{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);font-size:.58rem;margin-inline-end:4px;color:var(--ink)}
+  .flow-line{stroke-dasharray:7 9;animation:dash 0.9s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-16}}
+  .hot-ring{animation:hot 1.4s ease-in-out infinite}
+  @keyframes hot{50%{opacity:.1}}
+  .pav-g{cursor:pointer}
+  .pav-g:hover ~ g .lbl-bg, .pav-g:hover .lbl-bg{stroke:var(--accent)}
+
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+  .alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:.88rem}
+  .alert .sev{width:4px;align-self:stretch;border-radius:2px;flex:none}
+  .alert .body{display:grid;gap:6px;min-width:0}
+  .scroll{max-height:340px;overflow:auto;padding-inline-end:4px}
+  .log{display:grid;gap:6px}
+  .log .it{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:.84rem;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
+  .log .it.ap{border-color:var(--accent);background:var(--accent-soft)}
+  .log .t{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+  .actor{font-family:var(--mono);font-size:.66rem;font-weight:600;letter-spacing:.06em;padding:1px 7px;border-radius:999px;justify-self:start}
+  .actor.AUTOPILOT{background:var(--accent);color:var(--accent-ink)}
+  .actor.SUPERVISOR{background:var(--ink);color:var(--bg)}
+  .actor.GATE_STAFF{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--crit);border-radius:10px;font-size:.88rem}
+  .busy{display:grid;gap:8px}
+  .busy .r{display:grid;grid-template-columns:minmax(0,1fr) 90px 52px;gap:10px;align-items:center;font-size:.86rem}
+  .busy .bar{height:8px}
+  td .trend{font-family:var(--mono);font-size:.82rem}
+  @media (max-width:1100px){ .grid3,.mode{grid-template-columns:minmax(0,1fr)} .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Flow<span>Sense</span> <span class="muted small" style="font-family:var(--body);font-weight:400">Operations</span></div>
+  <nav class="nav"><a href="/">Visitor</a><a href="/gate.html">Gate</a><a href="/ops.html" aria-current="page">Operations</a><a href="/signs.html">QR signs</a></nav>
+</header>
+
+<main>
+  <div class="kpis">
+    <div class="card kpi"><span class="eyebrow">Longest wait</span><span class="v num" id="kLong">–</span><span class="small muted" id="kLongName"></span></div>
+    <div class="card kpi"><span class="eyebrow">Holding a virtual place</span><span class="v num" id="kHold">–</span><span class="small muted">free to roam right now</span></div>
+    <div class="card kpi"><span class="eyebrow">Nudges accepted today</span><span class="v num" id="kNudge">–</span><span class="small muted">moved to a quieter pavilion</span></div>
+    <div class="card kpi"><span class="eyebrow">Entries last hour</span><span class="v num" id="kEnt">–</span><span class="small muted">from door scans</span></div>
+    <div class="card kpi"><span class="eyebrow">Hours out of line today</span><span class="v num" id="kSaved">–</span><span class="small muted">waiting in shade, not in queues</span></div>
+  </div>
+
+  <section class="card mode" id="modeCard">
+    <div class="stack" style="gap:10px">
+      <div class="row" style="gap:14px">
+        <span class="eyebrow">Crowd control mode</span>
+        <div class="seg" aria-hidden="true"><span id="segManual">Manual</span><span id="segAuto">Autopilot</span></div>
+      </div>
+      <div id="modeText"></div>
+      <div class="row" id="modeBtns"></div>
+    </div>
+    <div class="stack" style="gap:8px">
+      <span class="eyebrow">Autopilot guardrails</span>
+      <ul class="guard">
+        <li>Applies the same recommendations you see. Never closes a pavilion or cancels a visitor's place.</li>
+        <li>Same anti-crowding cap on nudges, so a quiet pavilion never becomes the next bottleneck.</li>
+        <li>Your decision always wins: any action you take locks Autopilot out of that pavilion for 10 minutes.</li>
+        <li>Every decision is logged with its reason. Restarting FlowSense always returns to Manual.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card stack map">
+    <div class="map-head">
+      <div class="stack" style="gap:2px"><h2 style="font-size:1.1rem">Expo 2030 Riyadh · live site</h2><span class="small muted" id="mapNote">Five districts around Expo Plaza</span></div>
+      <div class="demo">
+        <span class="chip plain" id="simState">…</span>
+        <button class="btn sm" id="simToggle" type="button">…</button>
+        <select id="surgePav" aria-label="Pavilion for surge"></select>
+        <button class="btn sm primary" id="surgeBtn" type="button">Trigger surge</button>
+      </div>
+    </div>
+    <svg id="map" viewBox="30 30 1040 565" role="img" aria-label="Live isometric map of the Expo site. Glowing areas show where crowds are building."></svg>
+    <div class="legend">
+      <span><i style="background:var(--good)"></i>flowing</span><span><i style="background:var(--warn)"></i>building up</span><span><i style="background:var(--crit)"></i>crowded</span>
+      <span><i style="background:var(--accent)"></i>visitors redirected</span>
+      <span><b>G</b>gate</span><span><b>M</b>metro</span><span><b>F</b>food</span><span><b>A</b>first aid</span><span><b>W</b>water &amp; shade</span>
+      <span>Illustrative layout, not the official master plan · click a pavilion to select it</span>
+    </div>
+  </section>
+
+  <div class="grid3">
+    <div class="card stack">
+      <div class="spread"><h2 style="font-size:1.05rem">Recommendations</h2><span class="chip plain" id="recMode"></span></div>
+      <div id="alerts" class="stack scroll" style="gap:8px"></div>
+    </div>
+    <div class="card stack">
+      <div class="spread"><h2 style="font-size:1.05rem">Decision log</h2><span class="small muted">who did what, and why</span></div>
+      <div id="log" class="log scroll"></div>
+    </div>
+    <div class="card stack">
+      <div class="spread"><h2 style="font-size:1.05rem">Busiest now</h2><span class="small muted">share of 60 min</span></div>
+      <div id="busy" class="busy"></div>
+      <p class="small muted">Demo traffic makes the same JOIN and ENTRY scans real visitors would. A surge sends a crowd worth about 40 minutes of queue to one pavilion within 20 seconds, as if a big show just ended next door.</p>
+      <div id="resetArea"><button class="btn sm danger" id="resetBtn" type="button">Reset all data</button></div>
+    </div>
+  </div>
+
+  <section class="stack">
+    <h2 style="font-size:1.05rem">Pavilions</h2>
+    <div class="tbl-wrap">
+      <table style="min-width:1120px">
+        <thead><tr><th>Pavilion</th><th>Wait now</th><th>Measured</th><th>Est. in line</th><th>Holding</th><th>Door rate</th><th>App share</th><th>Last 60 min</th><th>+30 min</th><th>Overflow lane</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="small muted">Wait = people in line ÷ door rate (Little's Law). People in line = visitors holding a place ÷ app share. Measured = actual JOIN→ENTRY time of recent app visitors. An overflow lane adds 30% door capacity.</p>
+  </section>
+</main>
+
+<script src="/js/common.js"></script>
+<script src="/js/sitemap.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = FS.escapeHtml;
+  let data = [], autopilot = null;
+
+  const map = SiteMap.create($('map'), { onSelect: id => { $('surgePav').value = id; FS.toast('Selected for surge: ' + (data.find(p => p.pavilionId === id) || {}).name); } });
+
+  function drawMode() {
+    const auto = autopilot && autopilot.mode === 'AUTOPILOT';
+    $('modeCard').classList.toggle('auto', auto);
+    $('segManual').className = auto ? '' : 'on';
+    $('segAuto').className = auto ? 'on auto' : '';
+    if (auto) {
+      $('modeText').innerHTML = `<p><span class="live-dot"></span><b>Autopilot is distributing the crowd</b> since ${FS.time(autopilot.since)}.</p>
+        <p class="small muted">${autopilot.actionsToday} decisions today · ${autopilot.overflowLanesOpen} overflow lane${autopilot.overflowLanesOpen === 1 ? '' : 's'} open${autopilot.supervisorLocks.length ? ' · ' + autopilot.supervisorLocks.length + ' pavilion(s) under your manual lock' : ''}</p>`;
+      $('modeBtns').innerHTML = '<button class="btn" id="modeBtn" data-go="disable" type="button">Return to manual</button>';
+    } else {
+      $('modeText').innerHTML = `<p><b>Manual:</b> you review each recommendation and press Apply.</p>
+        <p class="small muted">Autopilot opens and closes overflow lanes and pushes switch offers to visitors in long queues by itself, 24/7.</p>`;
+      $('modeBtns').innerHTML = '<button class="btn primary" id="modeBtn" data-go="enable" type="button">Launch Autopilot</button>';
+    }
+    $('recMode').textContent = auto ? 'Autopilot applies these' : 'Waiting for you';
+    $('recMode').className = 'chip ' + (auto ? 'acc' : 'plain');
+  }
+
+  const ACTION_LABEL = { OPEN_OVERFLOW: 'Apply: open overflow lane', CLOSE_OVERFLOW: 'Apply: close overflow lane' };
+  function drawAlerts() {
+    const auto = autopilot && autopilot.mode === 'AUTOPILOT';
+    const locks = autopilot ? autopilot.supervisorLocks : [];
+    const list = data.filter(p => p.alert).map(p => {
+      const sev = p.status !== 'OPEN' ? 'muted' : (p.waitMinutes > 40 ? 'crit' : (p.recommendedAction === 'CLOSE_OVERFLOW' ? 'good' : 'warn'));
+      let action = '';
+      if (p.recommendedAction) {
+        const locked = locks.includes(p.pavilionId);
+        const note = auto ? (locked ? '<span class="chip plain">Your lock · Autopilot holds off</span>' : '<span class="chip acc">Autopilot applying</span>') : '';
+        action = `<div class="row">${note}<button class="btn sm ${auto ? '' : 'primary'}" data-apply="${p.recommendedAction}" data-id="${p.pavilionId}" type="button">${ACTION_LABEL[p.recommendedAction]}</button></div>`;
+      }
+      return `<div class="alert"><span class="sev" style="background:var(--${sev})"></span><div class="body"><span><b>${esc(p.name)}</b> · ${esc(p.alert)}</span>${action}</div></div>`;
+    });
+    $('alerts').innerHTML = list.length ? list.join('')
+      : '<div class="alert"><span class="sev" style="background:var(--good)"></span><span>All pavilions within target. Flow Nudges running in the background.</span></div>';
+  }
+
+  function drawLog(actions) {
+    if (!actions.length) { $('log').innerHTML = '<p class="small muted">No decisions yet. Actions by you, gate staff and Autopilot appear here.</p>'; return; }
+    $('log').innerHTML = actions.map(a => `<div class="it ${a.actor === 'AUTOPILOT' ? 'ap' : ''}">
+      <span class="t">${FS.time(a.createdAt)}</span><span class="actor ${a.actor}">${a.actor.replace('_', ' ')}</span>
+      <span></span><span>${esc(a.detail || a.action)}</span></div>`).join('');
+  }
+
+  function drawBusy() {
+    const top = data.filter(p => p.status === 'OPEN').sort((a, b) => b.waitMinutes - a.waitMinutes).slice(0, 5);
+    $('busy').innerHTML = top.map(p => {
+      const lv = { GREEN: 'good', AMBER: 'warn', RED: 'crit' }[p.level];
+      return `<div class="r"><span>${esc(p.name)}</span><div class="bar"><i style="width:${Math.min(100, p.waitMinutes / 60 * 100)}%;background:var(--${lv})"></i></div>
+        <span class="mono small num" style="text-align:end;color:var(--${lv})">${Math.round(p.waitMinutes)} min</span></div>`;
+    }).join('');
+  }
+
+  function drawTable() {
+    const rows = [...data].sort((a, b) => b.waitMinutes - a.waitMinutes);
+    $('rows').innerHTML = rows.map(p => {
+      const arrow = p.trend === 'UP' ? '↑' : (p.trend === 'DOWN' ? '↓' : '→');
+      const fl = p.forecast30Minutes < 15 ? 'good' : (p.forecast30Minutes < 35 ? 'warn' : 'crit');
+      const lane = p.overflowLane === 'OPEN';
+      return `<tr>
+        <td><b style="font-weight:600">${esc(p.name)}</b><div class="small muted">Gate ${esc(p.gate)} · ${p.zone}</div></td>
+        <td>${p.status === 'OPEN' ? `<span class="chip ${p.level} num">${FS.mins(p.waitMinutes)} min</span>` : `<span class="chip plain">${p.status}</span>`}</td>
+        <td class="num mono small">${p.measuredWaitMinutes == null ? '–' : Math.round(p.measuredWaitMinutes) + ' min'}</td>
+        <td class="num mono small">${Math.round(p.peopleInLine)}</td>
+        <td class="num mono small">${p.appWaiting}</td>
+        <td class="num mono small">${p.throughputPerMinute}/min</td>
+        <td class="num mono small">${Math.round(p.appShare * 100)}%</td>
+        <td>${FS.spark(p.history)}</td>
+        <td class="trend num" style="color:var(--${fl})">${Math.round(p.forecast30Minutes)} min ${arrow}</td>
+        <td><div class="row" style="flex-wrap:nowrap"><span class="chip ${lane ? 'acc' : 'plain'}">${lane ? 'Open' : 'Closed'}</span>
+          <button class="btn sm" data-lane="${lane ? 'CLOSED' : 'OPEN'}" data-id="${p.pavilionId}" type="button">${lane ? 'Close' : 'Open'}</button></div></td>
+        <td><button class="btn sm" data-status="${p.status === 'OPEN' ? 'PAUSED' : 'OPEN'}" data-id="${p.pavilionId}" type="button">${p.status === 'OPEN' ? 'Pause' : 'Resume'}</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  let busyFetch = false;
+  async function refresh() {
+    if (busyFetch) return;
+    busyFetch = true;
+    try {
+      const [w, s, sim, ap, fl, actions] = await Promise.all([
+        FS.api('GET', '/pavilion/wait-time/get'), FS.api('GET', '/pavilion/summary/get'), FS.api('GET', '/simulation/status'),
+        FS.api('GET', '/autopilot/status'), FS.api('GET', '/pavilion/flows/get'), FS.api('GET', '/autopilot/actions/get')]);
+      data = w; autopilot = ap;
+      $('kLong').innerHTML = `${Math.round(s.longestWaitMinutes)}<span class="small muted"> min</span>`;
+      $('kLongName').textContent = s.longestWaitPavilion;
+      $('kHold').textContent = s.holdingVirtualPlace.toLocaleString();
+      $('kNudge').textContent = s.nudgesAcceptedToday.toLocaleString();
+      $('kEnt').textContent = s.entriesLastHour.toLocaleString();
+      $('kSaved').textContent = s.hoursOutOfLineToday.toLocaleString();
+      const running = sim.message === 'RUNNING';
+      $('simState').textContent = running ? 'Traffic running' : 'Traffic stopped';
+      $('simState').className = 'chip ' + (running ? 'good' : 'plain');
+      $('simToggle').textContent = running ? 'Stop traffic' : 'Start traffic';
+      $('simToggle').dataset.running = running;
+      const sel = $('surgePav');
+      if (sel.options.length !== data.length) {
+        const keep = sel.value;
+        sel.innerHTML = [...data].sort((a, b) => a.name.localeCompare(b.name)).map(p => `<option value="${p.pavilionId}">${esc(p.name)}</option>`).join('');
+        sel.value = keep || (data.find(p => p.name === 'AI & Humanity') || data[0] || {}).pavilionId;
+      }
+      const moved = map.update(data, fl);
+      $('mapNote').textContent = moved ? `${moved} visitors redirected to quieter pavilions in the last 15 min` : 'Five districts around Expo Plaza';
+      drawMode(); drawAlerts(); drawLog(actions); drawBusy(); drawTable();
+    } catch (e) { FS.toast('Cannot reach FlowSense server: ' + e.message, true); }
+    busyFetch = false;
+  }
+
+  async function act(method, path) {
+    try { const r = await FS.api(method, path); FS.toast(r.message); refresh(); }
+    catch (err) { FS.toast(err.message, true); }
+  }
+
+  $('modeBtns').addEventListener('click', e => { const b = e.target.closest('button'); if (b) act('PUT', '/autopilot/' + b.dataset.go); });
+  $('alerts').addEventListener('click', e => {
+    const b = e.target.closest('button[data-apply]'); if (!b) return;
+    act('PUT', `/pavilion/overflow/${b.dataset.id}/${b.dataset.apply === 'OPEN_OVERFLOW' ? 'OPEN' : 'CLOSED'}`);
+  });
+  $('rows').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.lane) act('PUT', `/pavilion/overflow/${b.dataset.id}/${b.dataset.lane}`);
+    if (b.dataset.status) act('PUT', `/pavilion/status/${b.dataset.id}/${b.dataset.status}`);
+  });
+  $('simToggle').onclick = e => act('POST', e.target.dataset.running === 'true' ? '/simulation/stop' : '/simulation/start');
+  $('surgeBtn').onclick = () => act('POST', '/simulation/surge/' + $('surgePav').value);
+  $('resetArea').addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'resetBtn') {
+      $('resetArea').innerHTML = '<div class="confirm"><span>Delete every ticket, scan, history point and logged decision?</span><button class="btn sm danger" id="resetYes" type="button">Delete all</button><button class="btn sm" id="resetNo" type="button">Cancel</button></div>';
+      return;
+    }
+    if (b.id === 'resetYes') await act('DELETE', '/simulation/reset');
+    $('resetArea').innerHTML = '<button class="btn sm danger" id="resetBtn" type="button">Reset all data</button>';
+  });
+
+  refresh();
+  setInterval(refresh, 2000);
+})();
+</script>
+</body>
+</html>

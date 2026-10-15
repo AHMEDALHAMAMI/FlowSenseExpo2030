@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FlowSense QR Signs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/css/flowsense.css">
+<style>
+  main{max-width:1100px;margin:0 auto;padding:18px 16px 40px;display:grid;gap:16px}
+  .signs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .sign{background:#fff;color:#111;border:2px solid #0A7A6C;border-radius:18px;padding:20px;display:grid;justify-items:center;gap:10px;text-align:center;break-inside:avoid}
+  .sign .pv{font-family:var(--display);font-size:1.15rem;font-weight:700}
+  .sign .ar{font-family:'IBM Plex Sans Arabic',var(--body);font-weight:600;direction:rtl}
+  .sign .gate{font-family:var(--mono);font-size:.8rem;color:#555}
+  .sign .brandline{font-family:var(--display);font-size:.8rem;color:#0A7A6C}
+  @media print{ header,.controls{display:none} body{background:#fff} main{padding:0} }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Flow<span>Sense</span> <span class="muted small" style="font-family:var(--body);font-weight:400">QR signs</span></div>
+  <nav class="nav"><a href="/">Visitor</a><a href="/gate.html">Gate</a><a href="/ops.html">Operations</a><a href="/signs.html" aria-current="page">QR signs</a></nav>
+</header>
+<main>
+  <div class="card stack controls">
+    <label class="eyebrow" for="base">Address phones will open</label>
+    <div class="row" style="flex-wrap:nowrap"><input type="text" id="base"><button class="btn primary" id="apply" type="button">Update signs</button></div>
+    <p class="small muted">Phones can't open "localhost". Use this laptop's Wi-Fi address, e.g. http://192.168.1.20:8080 (Windows: <span class="mono">ipconfig</span>, Mac: <span class="mono">ipconfig getifaddr en0</span>). Print with Ctrl+P, or show a sign on a second screen during the pitch.</p>
+  </div>
+  <div class="signs" id="signs"></div>
+</main>
+<script src="/js/common.js"></script>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  $('base').value = FS.store('fs_base') || location.origin;
+  async function draw() {
+    const base = $('base').value.trim().replace(/\/$/, '');
+    FS.store('fs_base', base);
+    const pavs = await FS.api('GET', '/pavilion/get');
+    $('signs').innerHTML = pavs.map(p => `<div class="sign">
+        <div class="brandline">FlowSense</div>
+        <div class="pv">${FS.escapeHtml(p.name)}</div>
+        <div id="q${p.id}"></div>
+        <div><b>Scan to hold your place</b><div class="ar">امسح لحجز دورك وتجوّل بحرية</div></div>
+        <div class="gate">Gate ${FS.escapeHtml(p.gate)} · no app needed</div>
+      </div>`).join('');
+    for (const p of pavs) FS.qr($('q' + p.id), `${base}/?join=${p.id}`, 180);
+  }
+  $('apply').onclick = draw;
+  draw();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FlowSense Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/css/flowsense.css">
+<style>
+  main{max-width:1100px;margin:0 auto;padding:18px 16px 40px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+  .band{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+  .band .card{display:grid;gap:4px}
+  .big{font-family:var(--display);font-size:1.6rem;font-weight:700}
+  #reader{width:100%;min-height:220px;border-radius:12px;overflow:hidden;background:var(--panel2);display:grid;place-items:center}
+  #reader video{border-radius:12px}
+  .result{padding:14px;border-radius:12px;font-weight:500}
+  .result.ok{background:var(--good-soft);color:var(--good)}
+  .result.walk{background:var(--warn-soft);color:var(--warn)}
+  .result.err{background:var(--crit-soft);color:var(--crit)}
+  .tk{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .tk .code{font-family:var(--mono);font-weight:600}
+  .log{font-family:var(--mono);font-size:.78rem;color:var(--muted);display:grid;gap:3px;max-height:260px;overflow:auto}
+  @media (max-width:820px){ main{grid-template-columns:minmax(0,1fr)} .band{grid-template-columns:repeat(2,minmax(0,1fr))} .band .card:first-child{grid-column:1/-1} }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Flow<span>Sense</span> <span class="muted small" style="font-family:var(--body);font-weight:400">Gate</span></div>
+  <nav class="nav"><a href="/">Visitor</a><a href="/gate.html" aria-current="page">Gate</a><a href="/ops.html">Operations</a><a href="/signs.html">QR signs</a></nav>
+</header>
+
+<main>
+  <div class="band">
+    <div class="card">
+      <label class="eyebrow" for="pav">Pavilion</label>
+      <select id="pav"></select>
+      <div class="row small muted" id="pavMeta"></div>
+    </div>
+    <div class="card"><span class="eyebrow">Wait now</span><span class="big num" id="mWait">–</span></div>
+    <div class="card"><span class="eyebrow">Virtual queue</span><span class="big num" id="mWaiting">–</span></div>
+    <div class="card"><span class="eyebrow">Door rate</span><span class="big num" id="mMu">–</span></div>
+  </div>
+
+  <section class="card stack">
+    <div class="spread"><h2 style="font-size:1.05rem">Scan visitor pass</h2><button class="btn sm" id="camBtn" type="button">Start camera</button></div>
+    <div id="reader"><span class="muted small">Camera off. Works on this laptop (localhost) or over HTTPS.</span></div>
+    <div class="row" style="flex-wrap:nowrap">
+      <input type="text" id="manual" placeholder="Or type ticket code, e.g. EXPO-1234-5678" autocomplete="off">
+      <button class="btn primary" id="manualBtn" type="button">Admit</button>
+    </div>
+    <div id="result" class="result" hidden></div>
+    <div class="row">
+      <button class="btn" id="walkBtn" type="button">+1 walk-in entry</button>
+      <button class="btn" id="pauseBtn" type="button">Pause pavilion</button>
+    </div>
+  </section>
+
+  <section class="stack">
+    <div class="card stack">
+      <div class="spread"><h2 style="font-size:1.05rem">Called · return window open</h2><button class="btn sm" id="callNextBtn" type="button">Call next</button></div>
+      <div id="calledList" class="stack" style="gap:8px"></div>
+    </div>
+    <div class="card stack">
+      <h2 style="font-size:1.05rem">Entry log</h2>
+      <div class="log" id="log"><span>No entries yet on this device.</span></div>
+    </div>
+  </section>
+</main>
+
+<script src="/js/common.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = FS.escapeHtml;
+  let pavs = [], pid = +(FS.store('fs_gate_pid') || 0), current = null;
+  const logs = [];
+
+  function addLog(text) {
+    logs.unshift(FS.time(new Date().toISOString()) + '  ' + text);
+    $('log').innerHTML = logs.slice(0, 40).map(l => `<div>${esc(l)}</div>`).join('');
+  }
+
+  function showResult(msg, kind) {
+    const r = $('result');
+    r.textContent = msg; r.className = 'result ' + kind; r.hidden = false;
+    clearTimeout(showResult.t); showResult.t = setTimeout(() => r.hidden = true, 5000);
+  }
+
+  async function loadPavs() {
+    pavs = await FS.api('GET', '/pavilion/wait-time/get');
+    if (!pavs.find(p => p.pavilionId === pid)) pid = pavs.length ? pavs[0].pavilionId : 0;
+    const sel = $('pav');
+    if (!sel.options.length) {
+      sel.innerHTML = pavs.map(p => `<option value="${p.pavilionId}">${esc(p.name)} · Gate ${esc(p.gate)}</option>`).join('');
+    }
+    sel.value = pid;
+    current = pavs.find(p => p.pavilionId === pid);
+    if (current) {
+      $('mWait').innerHTML = `${FS.mins(current.waitMinutes)}<span class="small muted"> min</span>`;
+      $('mMu').innerHTML = `${current.throughputPerMinute}<span class="small muted"> /min</span>`;
+      $('pavMeta').innerHTML = `<span class="chip ${current.status === 'OPEN' ? current.level : 'plain'}">${current.status}</span>`
+        + (current.overflowLane === 'OPEN' ? '<span class="chip acc">Overflow lane open · use both doors</span>' : '')
+        + `<span>App share ${Math.round(current.appShare * 100)}%</span>`;
+      $('pauseBtn').textContent = current.status === 'OPEN' ? 'Pause pavilion' : 'Resume pavilion';
+    }
+  }
+
+  async function loadQueue() {
+    if (!pid) return;
+    const [called, waiting] = await Promise.all([
+      FS.api('GET', '/queue-ticket/called/' + pid),
+      FS.api('GET', '/queue-ticket/waiting-count/' + pid)
+    ]);
+    $('mWaiting').innerHTML = `${waiting}<span class="small muted"> waiting</span>`;
+    $('callNextBtn').disabled = waiting === 0;
+    if (!called.length) { $('calledList').innerHTML = '<p class="muted small">Nobody called right now. Visitors are called automatically about 5 minutes before their turn.</p>'; return; }
+    $('calledList').innerHTML = called.map(c => {
+      const ago = Math.floor(FS.minutesSince(c.calledAt));
+      return `<div class="tk"><div><div class="code">${c.ticketHash.substring(0, 6).toUpperCase()}</div>
+        <div class="small muted">called ${ago} min ago${c.lane === 'ACCESSIBLE' ? ' · <span class="chip acc">accessible</span>' : ''}</div></div>
+        <button class="btn primary sm" data-id="${c.id}" type="button">Admit</button></div>`;
+    }).join('');
+  }
+
+  async function refresh() {
+    try { await loadPavs(); await loadQueue(); } catch (e) { FS.toast(e.message, true); }
+  }
+
+  async function admitCode(code) {
+    code = (code || '').trim();
+    if (!code) return;
+    try {
+      const r = await FS.api('PUT', `/queue-ticket/enter/${pid}/${encodeURIComponent(code)}`);
+      const walk = r.message.includes('walk-in');
+      showResult(r.message, walk ? 'walk' : 'ok');
+      addLog((walk ? 'WALK-IN ' : 'ENTRY   ') + code);
+      refresh();
+    } catch (e) { showResult(e.message, 'err'); }
+  }
+
+  $('pav').onchange = e => { pid = +e.target.value; FS.store('fs_gate_pid', pid); refresh(); };
+  $('manualBtn').onclick = () => { admitCode($('manual').value); $('manual').value = ''; };
+  $('manual').addEventListener('keydown', e => { if (e.key === 'Enter') $('manualBtn').click(); });
+
+  $('calledList').addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    b.disabled = true;
+    try {
+      const r = await FS.api('PUT', `/queue-ticket/enter-by-id/${pid}/${b.dataset.id}`);
+      showResult(r.message, 'ok'); addLog('ENTRY   ticket #' + b.dataset.id);
+    } catch (err) { showResult(err.message, 'err'); }
+    refresh();
+  });
+
+  $('callNextBtn').onclick = async () => {
+    try { await FS.api('PUT', '/queue-ticket/call-next/' + pid); FS.toast('Next visitor called'); refresh(); }
+    catch (e) { FS.toast(e.message, true); }
+  };
+  $('walkBtn').onclick = async () => {
+    try { await FS.api('POST', '/queue-ticket/walk-in/' + pid); addLog('WALK-IN (counted)'); FS.toast('Walk-in entry recorded'); }
+    catch (e) { FS.toast(e.message, true); }
+  };
+  $('pauseBtn').onclick = async () => {
+    const next = current && current.status === 'OPEN' ? 'PAUSED' : 'OPEN';
+    try { const r = await FS.api('PUT', `/pavilion/status/${pid}/${next}`); FS.toast(r.message); refresh(); }
+    catch (e) { FS.toast(e.message, true); }
+  };
+
+  // ---- camera scanning ----
+  let scanner = null, lastCode = '', lastAt = 0;
+  $('camBtn').onclick = async () => {
+    if (scanner) {
+      await scanner.stop().catch(() => {}); scanner = null;
+      $('reader').innerHTML = '<span class="muted small">Camera off.</span>'; $('camBtn').textContent = 'Start camera'; return;
+    }
+    try {
+      if (!window.Html5Qrcode) await FS.loadScript('/js/vendor/html5-qrcode.min.js', 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js');
+      $('reader').innerHTML = '';
+      scanner = new Html5Qrcode('reader');
+      await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, text => {
+        if (text === lastCode && Date.now() - lastAt < 4000) return;   // ignore repeat reads of the same pass
+        lastCode = text; lastAt = Date.now();
+        admitCode(text);
+      });
+      $('camBtn').textContent = 'Stop camera';
+    } catch (e) {
+      scanner = null;
+      $('reader').innerHTML = '<span class="muted small" style="padding:16px">Camera unavailable here. Use the code box or the Admit buttons. (Browsers only allow the camera on localhost or HTTPS.)</span>';
+    }
+  };
+
+  refresh();
+  setInterval(refresh, 3000);
+})();
+</script>
+</body>
+</html>
